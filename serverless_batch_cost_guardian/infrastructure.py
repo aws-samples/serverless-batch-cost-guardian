@@ -288,16 +288,16 @@ class ServerlessBatchCostGuardianStack(core.Stack):
         
         ###
         
-        # Nuke Running Batch Jobs Lambda IAM Role
-        nuke_running_batch_jobs_lambda_role = iam.Role(scope=self, id='nuke-running-batch-jobs-lambda-iam-role',
+        # Stop Running Batch Jobs Lambda IAM Role
+        stop_running_batch_jobs_lambda_role = iam.Role(scope=self, id='stop-running-batch-jobs-lambda-iam-role',
             assumed_by = iam.ServicePrincipal('lambda.amazonaws.com'),
-            role_name='nuke-running-batch-jobs-lambda-iam-role',
+            role_name='stop-running-batch-jobs-lambda-iam-role',
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name('service-role/AWSLambdaBasicExecutionRole') 
             ])
         
         # Scoped down customer managed policy to allow Lambda access to Batch
-        nuke_running_batch_jobs_lambda_role.attach_inline_policy(iam.Policy(self, "batch-list-terminate-policy",
+        stop_running_batch_jobs_lambda_role.attach_inline_policy(iam.Policy(self, "batch-list-terminate-policy",
             statements=[iam.PolicyStatement(
                 actions=[
                   "batch:ListJobs",
@@ -308,19 +308,19 @@ class ServerlessBatchCostGuardianStack(core.Stack):
                 ])] 
             ))
             
-        # Nuke Running Batch Jobs Lambda Function
-        nuke_running_batch_jobs_lambda_function = lambda_.Function(
-            self, 'nuke-running-batch-jobs-lambda-function',
+        # Stop Running Batch Jobs Lambda Function
+        stop_running_batch_jobs_lambda_function = lambda_.Function(
+            self, 'stop-running-batch-jobs-lambda-function',
             code=lambda_.Code.from_asset('./serverless_batch_cost_guardian/lambdas'),
-            handler='nuke_running_batch_jobs.lambda_handler',
-            role=nuke_running_batch_jobs_lambda_role,
+            handler='stop_running_batch_jobs.lambda_handler',
+            role=stop_running_batch_jobs_lambda_role,
             runtime=lambda_.Runtime.PYTHON_3_9,
             environment={
                 'BATCH_JOB_QUEUE_NAME': batch_job_queue_name.value_as_string
             }
         )
         
-        nuke_running_batch_jobs_lambda_function.node.add_dependency(nuke_running_batch_jobs_lambda_role)
+        stop_running_batch_jobs_lambda_function.node.add_dependency(stop_running_batch_jobs_lambda_role)
         
         ###
         
@@ -347,7 +347,7 @@ class ServerlessBatchCostGuardianStack(core.Stack):
                     stop_new_jobs_lambda_function.function_arn,
                     write_tasks_to_dynamo_lambda_function.function_arn,
                     high_velocity_batch_spend_checker_lambda_function.function_arn,
-                    nuke_running_batch_jobs_lambda_function.function_arn
+                    stop_running_batch_jobs_lambda_function.function_arn
                 ])] 
             ))
         
@@ -355,7 +355,7 @@ class ServerlessBatchCostGuardianStack(core.Stack):
         step_functions_state_machine_iam_role.node.add_dependency(stop_new_jobs_lambda_function)
         step_functions_state_machine_iam_role.node.add_dependency(write_tasks_to_dynamo_lambda_function)
         step_functions_state_machine_iam_role.node.add_dependency(high_velocity_batch_spend_checker_lambda_function)
-        step_functions_state_machine_iam_role.node.add_dependency(nuke_running_batch_jobs_lambda_function)
+        step_functions_state_machine_iam_role.node.add_dependency(stop_running_batch_jobs_lambda_function)
         
         stop_new_batch_job_submissions = tasks.LambdaInvoke(self, "stop-new-batch-job-submissions",
             lambda_function=stop_new_jobs_lambda_function,
@@ -372,7 +372,6 @@ class ServerlessBatchCostGuardianStack(core.Stack):
                 "partition-key": tasks.DynamoAttributeValue.from_string("pk"),
                 "latestTimeStamp": tasks.DynamoAttributeValue.from_string(sfn.JsonPath.string_at("$.startTime")),
                 "runningCost": tasks.DynamoAttributeValue.from_string(sfn.JsonPath.string_at("$.startCost"))
-                #"runningCost": tasks.DynamoAttributeValue.from_number(10)
             },
             table=latest_timestamp_running_cost_table,
             result_path=sfn.JsonPath.DISCARD
@@ -396,8 +395,8 @@ class ServerlessBatchCostGuardianStack(core.Stack):
                 core.Duration.seconds(wait_time_parameter.value_as_number))
         )
  
-        nuke_running_batch_jobs = tasks.LambdaInvoke(self, "nuke-running-batch-jobs",
-            lambda_function=nuke_running_batch_jobs_lambda_function,
+        stop_running_batch_jobs = tasks.LambdaInvoke(self, "stop-running-batch-jobs",
+            lambda_function=stop_running_batch_jobs_lambda_function,
             output_path="$.Payload"
         )
         
@@ -405,7 +404,7 @@ class ServerlessBatchCostGuardianStack(core.Stack):
             .next(write_batch_ecs_tasks_to_dynamo) \
             .next(initialize_start_time_and_cost) \
             .next(budget_met_choice_state \
-             .when(sfn.Condition.string_matches("$.budgetMet", "YES"), nuke_running_batch_jobs) \
+             .when(sfn.Condition.string_matches("$.budgetMet", "YES"), stop_running_batch_jobs) \
              .when(sfn.Condition.string_matches("$.budgetMet", "NO"), high_velocity_batch_spend_checker.next(wait_time).next(budget_met_choice_state)))
             
         serverless_batch_cost_guardian_state_machine = sfn.StateMachine(self, "serverless-batch-cost-guardian-state-machine",
@@ -414,3 +413,7 @@ class ServerlessBatchCostGuardianStack(core.Stack):
         )
         
         serverless_batch_cost_guardian_state_machine.node.add_dependency(step_functions_state_machine_iam_role)
+        
+        
+        
+        

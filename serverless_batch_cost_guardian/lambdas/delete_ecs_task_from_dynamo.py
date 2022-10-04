@@ -2,14 +2,10 @@ import json
 import boto3
 import os 
 
-def lambda_handler(event, context):
-    
-    dynamodb_resource = boto3.resource('dynamodb')
-    table_name =  os.environ['RUNNING_TABLE_NAME']
+dynamodb_resource = boto3.resource('dynamodb')
+table_name =  os.environ['RUNNING_TABLE_NAME']
 
-    # print(event)
-    # taskArn = event['taskArn'] # incorrect key/format
-    # taskArn = event['detail'][0]['taskArn'] # also incorrect key/format
+def lambda_handler(event, context):
     
     taskArn = event['detail']['taskArn']
     

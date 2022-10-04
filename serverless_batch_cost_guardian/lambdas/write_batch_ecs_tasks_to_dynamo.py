@@ -3,14 +3,15 @@ import boto3
 from decimal import Decimal
 import os
 
+batch_client = boto3.client('batch')
+ecs_client = boto3.client('ecs')
+dynamodb_resource = boto3.resource('dynamodb')
+running_table_name = os.environ['RUNNING_TABLE_NAME'] 
+aggregate_table_name = os.environ['AGGREGATE_TABLE_NAME']
+running_table = dynamodb_resource.Table(running_table_name)
+aggregate_table = dynamodb_resource.Table(aggregate_table_name)
+
 def lambda_handler(event, context):
-    
-    batch_client = boto3.client('batch')
-    ecs_client = boto3.client('ecs')
-    
-    dynamodb_resource = boto3.resource('dynamodb')
-    running_table_name = os.environ['RUNNING_TABLE_NAME'] 
-    aggregate_table_name = os.environ['AGGREGATE_TABLE_NAME'] 
     
     response = batch_client.describe_compute_environments(
         computeEnvironments=[
@@ -27,9 +28,6 @@ def lambda_handler(event, context):
     response = ecs_client.list_tasks(
         cluster=ecs_cluster_name
     )
-    
-    running_table = dynamodb_resource.Table(running_table_name)
-    aggregate_table = dynamodb_resource.Table(aggregate_table_name)
     
     total_cpu = 0
     total_memory = 0
@@ -72,7 +70,6 @@ def lambda_handler(event, context):
     )
     print(response)
     
-
     return {
         'statusCode': 200,
         "startTime": event['startTime'],

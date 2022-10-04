@@ -13,6 +13,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import boto3
 import aws_cdk as core
 from constructs import Construct
 from aws_cdk import aws_batch as batch
@@ -90,6 +91,19 @@ class AwsCdkFargateBatchStack(core.Stack):
                 "subnets": [subnet.subnet_id for subnet in vpc.public_subnets],
                 "securityGroupIds": [sg.security_group_id]
             }
+        )
+        
+        # Output Compute Environment ECS cluster ARN
+        
+        batch_client = boto3.client('batch')
+        response = batch_client.describe_compute_environments(
+            computeEnvironments=[compute_environment.compute_environment_name]
+        )
+        
+        batch_compute_env_ecs_cluster_arn = core.CfnOutput(self, 'batchComputeEnvEcsClusterArn',
+          value=response['computeEnvironments'][0]['ecsClusterArn'],
+          description='Batch Compute Environment ECS cluster ARN',
+          export_name='batchComputeEnvEcsClusterArn',
         )
         
         # Job Queue

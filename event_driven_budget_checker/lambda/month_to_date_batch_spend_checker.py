@@ -4,10 +4,13 @@ import os
 from dateutil import relativedelta
 import datetime
 
-def lambda_handler(event, context):
+# Create a Cost Explorer client
+ce_client = boto3.client('ce')
 
-    # Create a Cost Explorer client
-    client = boto3.client('ce')
+# Create a Budgets client
+budgets_client = boto3.client('budgets')
+
+def lambda_handler(event, context):
 
     # NEW date range calculation 
     
@@ -24,7 +27,7 @@ def lambda_handler(event, context):
     formattedBeginningMonthDate = beginningMonthDate.strftime('%Y-%m-%d')
     formattedTodayDate = todayDate.strftime('%Y-%m-%d')
     
-    response = client.get_cost_and_usage(
+    response = ce_client.get_cost_and_usage(
             TimePeriod={"Start": formattedBeginningMonthDate, "End": formattedTodayDate},
             Granularity="MONTHLY",
             Metrics=["UnblendedCost"],
@@ -44,7 +47,7 @@ def lambda_handler(event, context):
             			'Tags': {
             				'Key': 'aws:batch:compute-environment',
             				'Values': [
-            					os.environ['BATCH_COMPUTE_ENV_NAME'], # 'researcher-compute-env'
+            					os.environ['BATCH_COMPUTE_ENV_NAME'],
             				],
             				'MatchOptions': [
             					'EQUALS',
@@ -60,12 +63,10 @@ def lambda_handler(event, context):
     
     ###
     
-    client = boto3.client('budgets')
-    
     account = os.environ['ACCOUNT_ID']
     budget = os.environ['BUDGET_NAME']
     
-    response = client.describe_budget(
+    response = budgets_client.describe_budget(
             AccountId=account,
             BudgetName=budget
     )
@@ -88,11 +89,9 @@ def lambda_handler(event, context):
     # Check if threshold reached 
     
     percent_used = percent(output, budget_limit)
-
-    #test_invoke_val = os.environ['DESIRED_BUDGET_THRESHOLD_PERCENT']
     
     if percent_used >= int(os.environ['DESIRED_BUDGET_THRESHOLD_PERCENT']):
-    #if test_invoke_val == 80:
+        
         print("Budget threshold reached. Invoking Cost Guardian now.")
         
         if os.environ['COST_GUARDIAN_STATE_MACHINE_ARN'] == '':

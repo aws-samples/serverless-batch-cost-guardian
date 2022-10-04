@@ -7,7 +7,7 @@ import os
 # run these environment variable seetings on cold start (outside handler) only since they are static
 dynamodb_resource = boto3.resource('dynamodb')
 aggregate_table_name = os.environ['AGGREGATE_TABLE_NAME']
-latest_timestamp_running_cost_table_name = os.environ['LATEST_TIMESTAMP_RUNNING_COST_TABLE_NAME'] # "batch-cost-guardian-latest-timestamp-and-running-cost"
+latest_timestamp_running_cost_table_name = os.environ['LATEST_TIMESTAMP_RUNNING_COST_TABLE_NAME']
 aggregate_table = dynamodb_resource.Table(aggregate_table_name)
 latest_timestamp_running_cost_table = dynamodb_resource.Table(latest_timestamp_running_cost_table_name)
 
@@ -36,7 +36,7 @@ def lambda_handler(event, context):
     
     time_delta = time_now - last_timestamp
     time_since_last_poll = get_hours(time_delta)
-    current_cpu_cost = time_since_last_poll * float(total_cpu) * 0.04048 # TODO: Leverage AWS Price List API Query with boto3 to avoid hardcoding in price 
+    current_cpu_cost = time_since_last_poll * float(total_cpu) * 0.04048 # TODO: Leverage AWS Price List API Query with boto3 to avoid hardcoding in price
     current_memory_cost = time_since_last_poll * float(total_memory) * 0.004445 # TODO: Leverage AWS Price List API Query with boto3 to avoid hardcoding in price
     
     current_cost = float(running_cost) + current_cpu_cost + current_memory_cost

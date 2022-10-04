@@ -2,15 +2,14 @@ import json
 import boto3
 import os
 
+batch_client = boto3.client('batch')
+statuses = ['SUBMITTED','PENDING','RUNNABLE','STARTING','RUNNING']
+
 def lambda_handler(event, context):
     # Terminate all jobs (applies to all runnable, starting, pending, starting, and running jobs)
     # https://aws.amazon.com/premiumsupport/knowledge-center/batch-jobs-termination/ 
     # https://www.tutorialspoint.com/how-to-use-boto3-to-get-the-details-of-multiple-glue-jobs-at-a-time
     # https://dev.classmethod.jp/articles/count-aws-batch-queue-by-custom-metrics/
-   
-    batch_client = boto3.client('batch')
-
-    statuses = ['SUBMITTED','PENDING','RUNNABLE','STARTING','RUNNING']
     
     for status in statuses:
         response = batch_client.list_jobs(
