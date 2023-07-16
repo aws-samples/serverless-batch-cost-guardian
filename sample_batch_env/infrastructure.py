@@ -92,9 +92,9 @@ class AwsCdkFargateBatchStack(core.Stack):
                 "securityGroupIds": [sg.security_group_id]
             }
         )
-        
+        # REMOVING Network boto3 call; not best practice and will cause failure during cdk synth: https://aws.amazon.com/blogs/devops/best-practices-for-developing-cloud-applications-with-aws-cdk/
         # Output Compute Environment ECS cluster ARN
-        
+        '''
         batch_client = boto3.client('batch')
         response = batch_client.describe_compute_environments(
             computeEnvironments=[compute_environment.compute_environment_name]
@@ -105,7 +105,7 @@ class AwsCdkFargateBatchStack(core.Stack):
           description='Batch Compute Environment ECS cluster ARN',
           export_name='batchComputeEnvEcsClusterArn',
         )
-        
+        '''
         # Job Queue
         job_queue = batch.CfnJobQueue(self, JOB_QUEUE_ID,
             job_queue_name=JOB_QUEUE_NAME,
